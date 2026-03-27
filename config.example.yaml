@@ -1,0 +1,68 @@
+# pg-outboxer configuration example
+# Copy this to config.yaml and customize for your environment
+
+source:
+  # Source type: "cdc" (logical replication) or "polling" (SELECT polling)
+  type: cdc
+
+  # PostgreSQL connection string (supports env var interpolation)
+  dsn: ${DATABASE_URL}
+
+  # Outbox table name
+  table: outbox
+
+  # CDC-specific settings (only used when type=cdc)
+  slot_name: pg_outboxer_slot
+  publication: pg_outboxer_pub
+
+  # Polling-specific settings (only used when type=polling)
+  poll_interval: 500ms
+  batch_size: 100
+
+publisher:
+  # Publisher type: "webhook", "redis_stream", or "kafka"
+  type: webhook
+
+  # Webhook URL (for webhook publisher)
+  url: https://my-service.com/events
+
+  # Request timeout
+  timeout: 10s
+
+  # HMAC-SHA256 signing secret (optional, for webhook publisher)
+  # Signature will be sent in X-Signature-256 header
+  signing_secret: ${WEBHOOK_SECRET}
+
+  # Custom headers to include in requests (optional)
+  headers:
+    Authorization: Bearer ${API_KEY}
+    X-Service: pg-outboxer
+
+  # Redis Stream settings (only used when type=redis_stream)
+  # url: redis://localhost:6379
+  # stream_name: events
+
+  # Kafka settings (only used when type=kafka)
+  # topic: outbox-events
+  # brokers:
+  #   - localhost:9092
+
+delivery:
+  # Number of parallel workers (partitioned by aggregate_id for ordering)
+  workers: 4
+
+  # Maximum retry attempts before moving to dead letter
+  max_retries: 10
+
+  # Dead letter table name
+  dead_letter_table: outbox_dead_letter
+
+observability:
+  # Prometheus metrics HTTP port
+  metrics_port: 9090
+
+  # Log level: debug, info, warn, error
+  log_level: info
+
+  # Log format: json or text
+  log_format: json
