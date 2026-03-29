@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  demo-service:
+    build: ./demo-service
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/demo?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  webhook-receiver:
+    build: ./webhook-receiver
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  pg-outboxer-setup:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    volumes:
+      - ./config.yaml:/config.yaml
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/demo?sslmode=disable
+    command: ["setup", "--config=/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  pg-outboxer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    volumes:
+      - ./config.yaml:/config.yaml
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/demo?sslmode=disable
+    command: ["run", "--config=/config.yaml", "--log-level=debug"]
+    ports:
+      - "9090:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pg-outboxer-setup:
+        condition: service_completed_successfully
+      webhook-receiver:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
