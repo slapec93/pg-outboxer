@@ -16,8 +16,8 @@ type Event struct {
 	CreatedAt     time.Time         `json:"created_at"`
 
 	// Internal tracking (not sent to publisher)
-	RetryCount    int       `json:"-"`
-	LastError     string    `json:"-"`
+	RetryCount int    `json:"-"`
+	LastError  string `json:"-"`
 }
 
 // Source is the interface for reading events from the outbox

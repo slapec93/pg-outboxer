@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/slapec93/pg-outboxer/internal/config"
+	"github.com/slapec93/pg-outboxer/internal/metrics"
 	"github.com/slapec93/pg-outboxer/internal/publisher"
 	"github.com/slapec93/pg-outboxer/internal/source"
 )
@@ -30,12 +31,12 @@ type Webhook struct {
 
 // webhookEnvelope wraps the event payload in a Stripe-style envelope
 type webhookEnvelope struct {
-	ID            string          `json:"id"`
-	Type          string          `json:"type"`
-	Created       int64           `json:"created"`
-	Data          webhookData     `json:"data"`
-	AggregateType string          `json:"aggregate_type"`
-	AggregateID   string          `json:"aggregate_id"`
+	ID            string            `json:"id"`
+	Type          string            `json:"type"`
+	Created       int64             `json:"created"`
+	Data          webhookData       `json:"data"`
+	AggregateType string            `json:"aggregate_type"`
+	AggregateID   string            `json:"aggregate_id"`
 	Headers       map[string]string `json:"headers,omitempty"`
 }
 
@@ -74,7 +75,12 @@ func New(cfg *config.PublisherConfig) (*Webhook, error) {
 }
 
 // Publish sends an event to the webhook URL
-func (w *Webhook) Publish(ctx context.Context, event source.Event) publisher.PublishResult {
+func (w *Webhook) Publish(ctx context.Context, event source.Event) (result publisher.PublishResult) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordPublish(w.name, result.Success, time.Since(start).Seconds())
+	}()
+
 	// Create Stripe-style envelope
 	envelope := webhookEnvelope{
 		ID:            event.ID,
@@ -127,9 +133,7 @@ func (w *Webhook) Publish(ctx context.Context, event source.Event) publisher.Pub
 	req.Header.Set("X-Event-ID", event.ID)
 
 	// Send request
-	start := time.Now()
 	resp, err := w.client.Do(req)
-	duration := time.Since(start)
 
 	// Handle network errors (connection refused, timeout, etc.)
 	if err != nil {
@@ -137,7 +141,7 @@ func (w *Webhook) Publish(ctx context.Context, event source.Event) publisher.Pub
 			"publisher", w.name,
 			"event_id", event.ID,
 			"error", err,
-			"duration", duration)
+			"duration", time.Since(start))
 
 		return publisher.PublishResult{
 			Success:   false,
@@ -151,14 +155,14 @@ func (w *Webhook) Publish(ctx context.Context, event source.Event) publisher.Pub
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 
 	// Check status code
-	result := w.classifyResponse(resp.StatusCode, string(respBody))
+	result = w.classifyResponse(resp.StatusCode, string(respBody))
 
 	if result.Success {
 		slog.Debug("webhook delivered successfully",
 			"publisher", w.name,
 			"event_id", event.ID,
 			"status", resp.StatusCode,
-			"duration", duration)
+			"duration", time.Since(start))
 	} else {
 		level := slog.LevelWarn
 		if !result.Retryable {
@@ -171,7 +175,7 @@ func (w *Webhook) Publish(ctx context.Context, event source.Event) publisher.Pub
 			"status", resp.StatusCode,
 			"retryable", result.Retryable,
 			"error", result.ErrorMsg,
-			"duration", duration)
+			"duration", time.Since(start))
 	}
 
 	return result

@@ -8,12 +8,36 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Default configuration values
+const (
+	// Source defaults
+	DefaultOutboxTable  = "outbox"
+	DefaultPollInterval = 500 * time.Millisecond
+	DefaultBatchSize    = 100
+	DefaultSlotName     = "pg_outboxer_slot"
+	DefaultPublication  = "pg_outboxer_pub"
+
+	// Publisher defaults
+	DefaultPublisherTimeout = 10 * time.Second
+
+	// Delivery defaults
+	DefaultWorkers          = 4
+	DefaultWorkerBufferSize = 10
+	DefaultMaxRetries       = 10
+	DefaultDeadLetterTable  = "outbox_dead_letter"
+
+	// Observability defaults
+	DefaultMetricsPort = 9090
+	DefaultLogLevel    = "info"
+	DefaultLogFormat   = "json"
+)
+
 // Config represents the complete application configuration
 type Config struct {
-	Source        SourceConfig          `mapstructure:"source"`
-	Publishers    []PublisherConfig     `mapstructure:"publishers"`
-	Delivery      DeliveryConfig        `mapstructure:"delivery"`
-	Observability ObservabilityConfig   `mapstructure:"observability"`
+	Source        SourceConfig        `mapstructure:"source"`
+	Publishers    []PublisherConfig   `mapstructure:"publishers"`
+	Delivery      DeliveryConfig      `mapstructure:"delivery"`
+	Observability ObservabilityConfig `mapstructure:"observability"`
 }
 
 // SourceConfig configures the event source (polling or CDC)
@@ -34,8 +58,8 @@ type SourceConfig struct {
 
 // PublisherConfig configures the event publisher
 type PublisherConfig struct {
-	Name    string            `mapstructure:"name"`    // Publisher name (e.g., "stripe", "chartmogul")
-	Type    string            `mapstructure:"type"`    // "webhook", "redis_stream", "kafka"
+	Name    string            `mapstructure:"name"` // Publisher name (e.g., "stripe", "chartmogul")
+	Type    string            `mapstructure:"type"` // "webhook", "redis_stream", "kafka"
 	URL     string            `mapstructure:"url"`
 	Timeout time.Duration     `mapstructure:"timeout"`
 	Headers map[string]string `mapstructure:"headers"`
@@ -54,6 +78,7 @@ type PublisherConfig struct {
 // DeliveryConfig configures delivery behavior
 type DeliveryConfig struct {
 	Workers          int    `mapstructure:"workers"`
+	WorkerBufferSize int    `mapstructure:"worker_buffer_size"`
 	MaxRetries       int    `mapstructure:"max_retries"`
 	DeadLetterTable  string `mapstructure:"dead_letter_table"`
 }
@@ -93,29 +118,29 @@ func Load(path string) (*Config, error) {
 func (c *Config) setDefaults() {
 	// Source defaults
 	if c.Source.Table == "" {
-		c.Source.Table = "outbox"
+		c.Source.Table = DefaultOutboxTable
 	}
 	if c.Source.Type == "polling" {
 		if c.Source.PollInterval == 0 {
-			c.Source.PollInterval = 500 * time.Millisecond
+			c.Source.PollInterval = DefaultPollInterval
 		}
 		if c.Source.BatchSize == 0 {
-			c.Source.BatchSize = 100
+			c.Source.BatchSize = DefaultBatchSize
 		}
 	}
 	if c.Source.Type == "cdc" {
 		if c.Source.SlotName == "" {
-			c.Source.SlotName = "pg_outboxer_slot"
+			c.Source.SlotName = DefaultSlotName
 		}
 		if c.Source.Publication == "" {
-			c.Source.Publication = "pg_outboxer_pub"
+			c.Source.Publication = DefaultPublication
 		}
 	}
 
 	// Publisher defaults
 	for i := range c.Publishers {
 		if c.Publishers[i].Timeout == 0 {
-			c.Publishers[i].Timeout = 10 * time.Second
+			c.Publishers[i].Timeout = DefaultPublisherTimeout
 		}
 		// Default name if not provided
 		if c.Publishers[i].Name == "" {
@@ -125,24 +150,27 @@ func (c *Config) setDefaults() {
 
 	// Delivery defaults
 	if c.Delivery.Workers == 0 {
-		c.Delivery.Workers = 4
+		c.Delivery.Workers = DefaultWorkers
+	}
+	if c.Delivery.WorkerBufferSize == 0 {
+		c.Delivery.WorkerBufferSize = DefaultWorkerBufferSize
 	}
 	if c.Delivery.MaxRetries == 0 {
-		c.Delivery.MaxRetries = 10
+		c.Delivery.MaxRetries = DefaultMaxRetries
 	}
 	if c.Delivery.DeadLetterTable == "" {
-		c.Delivery.DeadLetterTable = "outbox_dead_letter"
+		c.Delivery.DeadLetterTable = DefaultDeadLetterTable
 	}
 
 	// Observability defaults
 	if c.Observability.MetricsPort == 0 {
-		c.Observability.MetricsPort = 9090
+		c.Observability.MetricsPort = DefaultMetricsPort
 	}
 	if c.Observability.LogLevel == "" {
-		c.Observability.LogLevel = "info"
+		c.Observability.LogLevel = DefaultLogLevel
 	}
 	if c.Observability.LogFormat == "" {
-		c.Observability.LogFormat = "json"
+		c.Observability.LogFormat = DefaultLogFormat
 	}
 }
 

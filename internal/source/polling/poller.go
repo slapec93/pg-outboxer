@@ -11,6 +11,7 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/slapec93/pg-outboxer/internal/config"
+	"github.com/slapec93/pg-outboxer/internal/metrics"
 	"github.com/slapec93/pg-outboxer/internal/source"
 )
 
@@ -245,6 +246,9 @@ func (p *Poller) Nack(ctx context.Context, eventID string, eventErr error, retry
 		return fmt.Errorf("failed to nack event: %w", err)
 	}
 
+	// Record retry metric
+	metrics.RecordRetry(retryCount)
+
 	slog.Info("event scheduled for retry",
 		"event_id", eventID,
 		"retry_count", retryCount,
@@ -288,6 +292,9 @@ func (p *Poller) moveToDeadLetter(ctx context.Context, eventID string, errorMsg 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit dead letter transaction: %w", err)
 	}
+
+	// Record dead letter metric
+	metrics.RecordDeadLetter()
 
 	slog.Warn("event moved to dead letter",
 		"event_id", eventID,

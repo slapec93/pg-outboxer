@@ -94,7 +94,7 @@ func TestWebhook_PublishSuccess(t *testing.T) {
 			AggregateType string `json:"aggregate_type"`
 			AggregateID   string `json:"aggregate_id"`
 			Data          struct {
-				Object map[string]interface{} `json:"object"`
+				Object map[string]any `json:"object"`
 			} `json:"data"`
 		}
 		if err := json.Unmarshal(body, &envelope); err != nil {

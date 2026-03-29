@@ -1,6 +1,6 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -16,13 +16,16 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates postgresql-client
 
-WORKDIR /root/
+WORKDIR /app
 
-COPY --from=builder /app/pg-outboxer .
+COPY --from=builder /build/pg-outboxer .
+
+# Copy embedded migrations (if needed for setup command)
+COPY --from=builder /build/cmd/pg-outboxer/migrations ./migrations
 
 EXPOSE 9090
 
 ENTRYPOINT ["./pg-outboxer"]
-CMD ["run", "--config=/config.yaml"]
+CMD ["run", "--config", "/app/config.yaml"]

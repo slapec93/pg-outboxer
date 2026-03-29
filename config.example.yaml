@@ -58,6 +58,9 @@ delivery:
   # Number of parallel workers (partitioned by aggregate_id for ordering)
   workers: 4
 
+  # Event buffer size per worker (higher = more throughput, more memory)
+  worker_buffer_size: 10
+
   # Maximum retry attempts before moving to dead letter
   max_retries: 10
 
