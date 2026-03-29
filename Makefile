@@ -16,8 +16,13 @@ build: ## Build the binary
 run: ## Run from source
 	go run ./cmd/pg-outboxer run --config=config.example.yaml
 
-test: ## Run tests
+test: ## Run unit tests
 	go test -v -race -coverprofile=coverage.out ./...
+
+test-integration: ## Run integration tests (requires Docker)
+	go test -v -tags=integration -timeout 10m ./test/integration/...
+
+test-all: test test-integration ## Run all tests
 
 test-coverage: test ## Run tests with coverage report
 	go tool cover -html=coverage.out

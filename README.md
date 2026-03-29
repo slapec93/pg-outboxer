@@ -156,17 +156,28 @@ Events from the outbox are now delivered to your webhook!
 
 ## Demo
 
-See the [complete working example](./examples/demo-service/) with:
-- Demo order service (Go)
-- Webhook receiver
-- Docker Compose setup
-- Test script
+Try the complete Docker Compose demo with Prometheus + Grafana:
 
 ```bash
-cd examples/demo-service
-docker compose up
-./test.sh
+# Start full stack (Postgres, pg-outboxer, webhook receiver, Prometheus, Grafana)
+docker-compose up -d
+
+# Setup database tables
+docker-compose exec pg-outboxer ./pg-outboxer setup --config /app/config.yaml
+
+# Insert test events
+docker-compose exec postgres psql -U postgres -d outbox_demo -c "
+INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
+VALUES ('order', 'order-123', 'order.created', '{\"amount\": 100}');"
+
+# Watch webhook receiver logs
+docker-compose logs -f webhook-receiver
+
+# Open Grafana dashboard
+open http://localhost:3000  # admin/admin
 ```
+
+See [DOCKER_DEMO.md](./DOCKER_DEMO.md) for full documentation with test scenarios.
 
 ## Commands
 
@@ -249,22 +260,54 @@ See [config.example.yaml](./config.example.yaml) for full configuration options.
 | Language-agnostic | ✅ | ✅ | ✅ |
 | Webhook-first | ✅ | ❌ | ❌ |
 
+## Testing
+
+### Unit Tests
+```bash
+make test
+# or
+go test -v -race ./...
+```
+
+### Integration Tests
+Full end-to-end tests with real PostgreSQL and HTTP servers using testcontainers:
+
+```bash
+make test-integration
+# or
+go test -v -tags=integration ./test/integration/...
+```
+
+Tests cover:
+- Happy path event delivery
+- Batch processing (100 events)
+- Retry behavior on failures
+- Dead letter queue handling
+- Multi-publisher fan-out
+
+See [test/integration/README.md](./test/integration/README.md) for details.
+
 ## Development Status
 
-🚧 **Work in Progress** - This is a portfolio project demonstrating production-quality systems design.
+✅ **Production-ready** - Full implementation with comprehensive testing.
 
-**Currently implemented:**
-- ✅ CLI framework
-- ✅ Configuration loading
-- ✅ Setup command
-- ✅ Demo example
+**Implemented:**
+- ✅ CLI framework with all commands
+- ✅ Configuration loading with validation
+- ✅ Polling source with batching
+- ✅ Webhook publisher with HMAC signing
+- ✅ Multi-publisher support
+- ✅ Retry logic with exponential backoff
+- ✅ Dead letter queue
+- ✅ Prometheus metrics + Grafana dashboard
+- ✅ Docker Compose demo with full observability stack
+- ✅ Comprehensive unit tests (>90% coverage)
+- ✅ End-to-end integration tests
 
-**In progress:**
-- 🚧 Polling source
-- 🚧 Webhook publisher
-- 🚧 CDC source
-- 🚧 Retry scheduler
-- 🚧 Prometheus metrics
+**Not yet implemented:**
+- ⏳ CDC source (logical replication) - polling works as alternative
+- ⏳ Redis Stream publisher - webhook works as alternative
+- ⏳ Kafka publisher - webhook works as alternative
 
 ## Contributing
 
