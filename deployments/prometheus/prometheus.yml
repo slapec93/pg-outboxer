@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'docker-demo'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts/*.yml"
+
+scrape_configs:
+  # pg-outboxer metrics
+  - job_name: 'pg-outboxer'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['pg-outboxer:9090']
+        labels:
+          service: 'pg-outboxer'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['localhost:9090']
