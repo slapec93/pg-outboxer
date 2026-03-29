@@ -1,5 +1,10 @@
 # pg-outboxer
 
+[![CI](https://github.com/slapec93/pg-outboxer/actions/workflows/ci.yml/badge.svg)](https://github.com/slapec93/pg-outboxer/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/slapec93/pg-outboxer)](https://goreportcard.com/report/github.com/slapec93/pg-outboxer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/slapec93/pg-outboxer)](go.mod)
+
 A lightweight, language-agnostic sidecar for implementing the **Transactional Outbox Pattern** with PostgreSQL.
 
 **No Kafka required. No JVM required. Just a single binary.**
@@ -286,6 +291,19 @@ Tests cover:
 - Multi-publisher fan-out
 
 See [test/integration/README.md](./test/integration/README.md) for details.
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Quick Start:**
+```bash
+git clone https://github.com/slapec93/pg-outboxer.git
+cd pg-outboxer
+make test
+```
+
+**CI/CD:** Automated testing and releases via GitHub Actions. See [docs/CICD.md](docs/CICD.md) for details.
 
 ## Development Status
 

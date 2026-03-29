@@ -1,0 +1,127 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: pg-outboxer
+    binary: pg-outboxer
+    main: ./cmd/pg-outboxer
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - config.example.yaml
+      - DOCKER_DEMO.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Performance Improvements
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: slapec93
+    name: pg-outboxer
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Installation
+
+    ### Binary
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Docker
+    ```bash
+    docker pull ghcr.io/slapec93/pg-outboxer:{{ .Tag }}
+    ```
+
+    ### Go Install
+    ```bash
+    go install github.com/slapec93/pg-outboxer/cmd/pg-outboxer@{{ .Tag }}
+    ```
+
+  footer: |
+    ## What's Next?
+
+    See the [documentation](https://github.com/slapec93/pg-outboxer#readme) for usage instructions.
+
+    **Full Changelog**: https://github.com/slapec93/pg-outboxer/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+brews:
+  - repository:
+      owner: slapec93
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/slapec93/pg-outboxer
+    description: Transactional outbox pattern implementation for PostgreSQL
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    skip_upload: auto
+
+nfpms:
+  - id: pg-outboxer
+    package_name: pg-outboxer
+    homepage: https://github.com/slapec93/pg-outboxer
+    maintainer: Gergely Bekesi <gergely@example.com>
+    description: Transactional outbox pattern implementation for PostgreSQL
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
