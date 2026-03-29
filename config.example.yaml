@@ -19,33 +19,40 @@ source:
   poll_interval: 500ms
   batch_size: 100
 
-publisher:
-  # Publisher type: "webhook", "redis_stream", or "kafka"
-  type: webhook
+publishers:
+  # You can configure multiple publishers to fan-out events
+  # Events are sent to ALL publishers. If any fail, the event retries.
 
-  # Webhook URL (for webhook publisher)
-  url: https://my-service.com/events
+  - name: primary-webhook
+    type: webhook
+    url: https://my-service.com/events
+    timeout: 10s
+    signing_secret: ${WEBHOOK_SECRET}
+    headers:
+      Authorization: Bearer ${API_KEY}
+      X-Service: pg-outboxer
 
-  # Request timeout
-  timeout: 10s
+  # Example: Additional webhook for another service
+  # - name: stripe-webhook
+  #   type: webhook
+  #   url: https://api.stripe.com/webhooks
+  #   timeout: 5s
+  #   signing_secret: ${STRIPE_SECRET}
 
-  # HMAC-SHA256 signing secret (optional, for webhook publisher)
-  # Signature will be sent in X-Signature-256 header
-  signing_secret: ${WEBHOOK_SECRET}
+  # Redis Stream example (commented out)
+  # - name: redis-events
+  #   type: redis_stream
+  #   url: redis://localhost:6379
+  #   stream_name: events
+  #   timeout: 5s
 
-  # Custom headers to include in requests (optional)
-  headers:
-    Authorization: Bearer ${API_KEY}
-    X-Service: pg-outboxer
-
-  # Redis Stream settings (only used when type=redis_stream)
-  # url: redis://localhost:6379
-  # stream_name: events
-
-  # Kafka settings (only used when type=kafka)
-  # topic: outbox-events
-  # brokers:
-  #   - localhost:9092
+  # Kafka example (commented out)
+  # - name: kafka-events
+  #   type: kafka
+  #   topic: outbox-events
+  #   brokers:
+  #     - localhost:9092
+  #   timeout: 10s
 
 delivery:
   # Number of parallel workers (partitioned by aggregate_id for ordering)

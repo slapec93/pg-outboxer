@@ -10,10 +10,10 @@ import (
 
 // Config represents the complete application configuration
 type Config struct {
-	Source        SourceConfig        `mapstructure:"source"`
-	Publisher     PublisherConfig     `mapstructure:"publisher"`
-	Delivery      DeliveryConfig      `mapstructure:"delivery"`
-	Observability ObservabilityConfig `mapstructure:"observability"`
+	Source        SourceConfig          `mapstructure:"source"`
+	Publishers    []PublisherConfig     `mapstructure:"publishers"`
+	Delivery      DeliveryConfig        `mapstructure:"delivery"`
+	Observability ObservabilityConfig   `mapstructure:"observability"`
 }
 
 // SourceConfig configures the event source (polling or CDC)
@@ -34,7 +34,8 @@ type SourceConfig struct {
 
 // PublisherConfig configures the event publisher
 type PublisherConfig struct {
-	Type    string            `mapstructure:"type"` // "webhook", "redis_stream", "kafka"
+	Name    string            `mapstructure:"name"`    // Publisher name (e.g., "stripe", "chartmogul")
+	Type    string            `mapstructure:"type"`    // "webhook", "redis_stream", "kafka"
 	URL     string            `mapstructure:"url"`
 	Timeout time.Duration     `mapstructure:"timeout"`
 	Headers map[string]string `mapstructure:"headers"`
@@ -112,8 +113,14 @@ func (c *Config) setDefaults() {
 	}
 
 	// Publisher defaults
-	if c.Publisher.Timeout == 0 {
-		c.Publisher.Timeout = 10 * time.Second
+	for i := range c.Publishers {
+		if c.Publishers[i].Timeout == 0 {
+			c.Publishers[i].Timeout = 10 * time.Second
+		}
+		// Default name if not provided
+		if c.Publishers[i].Name == "" {
+			c.Publishers[i].Name = fmt.Sprintf("publisher-%d", i+1)
+		}
 	}
 
 	// Delivery defaults
@@ -159,32 +166,47 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate publisher
-	validPublisherTypes := []string{"webhook", "redis_stream", "kafka"}
-	if !contains(validPublisherTypes, c.Publisher.Type) {
-		return fmt.Errorf("publisher.type must be one of %v, got: %s",
-			validPublisherTypes, c.Publisher.Type)
+	// Validate publishers
+	if len(c.Publishers) == 0 {
+		return fmt.Errorf("at least one publisher must be configured")
 	}
 
-	// Publisher-specific validation
-	switch c.Publisher.Type {
-	case "webhook":
-		if c.Publisher.URL == "" {
-			return fmt.Errorf("publisher.url is required for webhook publisher")
+	validPublisherTypes := []string{"webhook", "redis_stream", "kafka"}
+	publisherNames := make(map[string]bool)
+
+	for i, pub := range c.Publishers {
+		// Check for duplicate names
+		if publisherNames[pub.Name] {
+			return fmt.Errorf("duplicate publisher name: %s", pub.Name)
 		}
-	case "redis_stream":
-		if c.Publisher.URL == "" {
-			return fmt.Errorf("publisher.url is required for redis_stream publisher")
+		publisherNames[pub.Name] = true
+
+		// Validate type
+		if !contains(validPublisherTypes, pub.Type) {
+			return fmt.Errorf("publishers[%d].type must be one of %v, got: %s",
+				i, validPublisherTypes, pub.Type)
 		}
-		if c.Publisher.StreamName == "" {
-			return fmt.Errorf("publisher.stream_name is required for redis_stream publisher")
-		}
-	case "kafka":
-		if c.Publisher.Topic == "" {
-			return fmt.Errorf("publisher.topic is required for kafka publisher")
-		}
-		if len(c.Publisher.Brokers) == 0 {
-			return fmt.Errorf("publisher.brokers is required for kafka publisher")
+
+		// Publisher-specific validation
+		switch pub.Type {
+		case "webhook":
+			if pub.URL == "" {
+				return fmt.Errorf("publishers[%d].url is required for webhook publisher", i)
+			}
+		case "redis_stream":
+			if pub.URL == "" {
+				return fmt.Errorf("publishers[%d].url is required for redis_stream publisher", i)
+			}
+			if pub.StreamName == "" {
+				return fmt.Errorf("publishers[%d].stream_name is required for redis_stream publisher", i)
+			}
+		case "kafka":
+			if pub.Topic == "" {
+				return fmt.Errorf("publishers[%d].topic is required for kafka publisher", i)
+			}
+			if len(pub.Brokers) == 0 {
+				return fmt.Errorf("publishers[%d].brokers is required for kafka publisher", i)
+			}
 		}
 	}
 
