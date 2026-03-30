@@ -5,7 +5,7 @@ End-to-end integration tests using real PostgreSQL and HTTP servers.
 ## Prerequisites
 
 - Docker (required for testcontainers)
-- Go 1.22+
+- Go 1.26+
 
 ## Test Files
 

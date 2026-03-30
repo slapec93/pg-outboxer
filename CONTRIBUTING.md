@@ -5,7 +5,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 ## Development Setup
 
 ### Prerequisites
-- Go 1.22 or later
+- Go 1.26 or later
 - Docker (for integration tests)
 - Make
 
