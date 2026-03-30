@@ -21,9 +21,9 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Install golangci-lint from source
+      - name: Install golangci-lint
         run: |
-          # Pinned to v2.11.4 to prevent unexpected CI breaks
+          # Pinned to v2.11.4 (latest) to prevent unexpected CI breaks
           # Update by checking: https://github.com/golangci/golangci-lint/releases
           curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.4
 
