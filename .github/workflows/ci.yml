@@ -25,7 +25,7 @@ jobs:
         run: |
           # Pinned to v2.11.4 to prevent unexpected CI breaks
           # Update by checking: https://github.com/golangci/golangci-lint/releases
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.11.4
+          curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.4
 
       - name: Run golangci-lint
         run: golangci-lint run --timeout=5m
