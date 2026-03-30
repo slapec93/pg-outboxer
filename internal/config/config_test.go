@@ -2,9 +2,11 @@ package config
 
 import (
 	"os"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_SetDefaults(t *testing.T) {
@@ -22,15 +24,9 @@ func TestConfig_SetDefaults(t *testing.T) {
 				},
 			},
 			verify: func(t *testing.T, c *Config) {
-				if c.Source.Table != DefaultOutboxTable {
-					t.Errorf("expected table=%s, got %s", DefaultOutboxTable, c.Source.Table)
-				}
-				if c.Source.PollInterval != DefaultPollInterval {
-					t.Errorf("expected poll_interval=%v, got %v", DefaultPollInterval, c.Source.PollInterval)
-				}
-				if c.Source.BatchSize != DefaultBatchSize {
-					t.Errorf("expected batch_size=%d, got %d", DefaultBatchSize, c.Source.BatchSize)
-				}
+				assert.Equal(t, DefaultOutboxTable, c.Source.Table, "should set default table")
+				assert.Equal(t, DefaultPollInterval, c.Source.PollInterval, "should set default poll interval")
+				assert.Equal(t, DefaultBatchSize, c.Source.BatchSize, "should set default batch size")
 			},
 		},
 		{
@@ -42,12 +38,8 @@ func TestConfig_SetDefaults(t *testing.T) {
 				},
 			},
 			verify: func(t *testing.T, c *Config) {
-				if c.Source.SlotName != DefaultSlotName {
-					t.Errorf("expected slot_name=%s, got %s", DefaultSlotName, c.Source.SlotName)
-				}
-				if c.Source.Publication != DefaultPublication {
-					t.Errorf("expected publication=%s, got %s", DefaultPublication, c.Source.Publication)
-				}
+				assert.Equal(t, DefaultSlotName, c.Source.SlotName, "should set default slot name")
+				assert.Equal(t, DefaultPublication, c.Source.Publication, "should set default publication")
 			},
 		},
 		{
@@ -60,16 +52,12 @@ func TestConfig_SetDefaults(t *testing.T) {
 			},
 			verify: func(t *testing.T, c *Config) {
 				for i, pub := range c.Publishers {
-					if pub.Timeout != DefaultPublisherTimeout {
-						t.Errorf("publisher[%d]: expected timeout=%v, got %v", i, DefaultPublisherTimeout, pub.Timeout)
-					}
+					assert.Equal(t, DefaultPublisherTimeout, pub.Timeout, "publisher[%d] should have default timeout", i)
 					expectedName := "publisher-1"
 					if i == 1 {
 						expectedName = "publisher-2"
 					}
-					if pub.Name != expectedName {
-						t.Errorf("publisher[%d]: expected name=%s, got %s", i, expectedName, pub.Name)
-					}
+					assert.Equal(t, expectedName, pub.Name, "publisher[%d] should have auto-generated name", i)
 				}
 			},
 		},
@@ -79,18 +67,10 @@ func TestConfig_SetDefaults(t *testing.T) {
 				Source: SourceConfig{Type: "polling", DSN: "test"},
 			},
 			verify: func(t *testing.T, c *Config) {
-				if c.Delivery.Workers != DefaultWorkers {
-					t.Errorf("expected workers=%d, got %d", DefaultWorkers, c.Delivery.Workers)
-				}
-				if c.Delivery.WorkerBufferSize != DefaultWorkerBufferSize {
-					t.Errorf("expected worker_buffer_size=%d, got %d", DefaultWorkerBufferSize, c.Delivery.WorkerBufferSize)
-				}
-				if c.Delivery.MaxRetries != DefaultMaxRetries {
-					t.Errorf("expected max_retries=%d, got %d", DefaultMaxRetries, c.Delivery.MaxRetries)
-				}
-				if c.Delivery.DeadLetterTable != DefaultDeadLetterTable {
-					t.Errorf("expected dead_letter_table=%s, got %s", DefaultDeadLetterTable, c.Delivery.DeadLetterTable)
-				}
+				assert.Equal(t, DefaultWorkers, c.Delivery.Workers, "should set default workers")
+				assert.Equal(t, DefaultWorkerBufferSize, c.Delivery.WorkerBufferSize, "should set default worker buffer size")
+				assert.Equal(t, DefaultMaxRetries, c.Delivery.MaxRetries, "should set default max retries")
+				assert.Equal(t, DefaultDeadLetterTable, c.Delivery.DeadLetterTable, "should set default dead letter table")
 			},
 		},
 		{
@@ -99,15 +79,9 @@ func TestConfig_SetDefaults(t *testing.T) {
 				Source: SourceConfig{Type: "polling", DSN: "test"},
 			},
 			verify: func(t *testing.T, c *Config) {
-				if c.Observability.MetricsPort != DefaultMetricsPort {
-					t.Errorf("expected metrics_port=%d, got %d", DefaultMetricsPort, c.Observability.MetricsPort)
-				}
-				if c.Observability.LogLevel != DefaultLogLevel {
-					t.Errorf("expected log_level=%s, got %s", DefaultLogLevel, c.Observability.LogLevel)
-				}
-				if c.Observability.LogFormat != DefaultLogFormat {
-					t.Errorf("expected log_format=%s, got %s", DefaultLogFormat, c.Observability.LogFormat)
-				}
+				assert.Equal(t, DefaultMetricsPort, c.Observability.MetricsPort, "should set default metrics port")
+				assert.Equal(t, DefaultLogLevel, c.Observability.LogLevel, "should set default log level")
+				assert.Equal(t, DefaultLogFormat, c.Observability.LogFormat, "should set default log format")
 			},
 		},
 		{
@@ -134,36 +108,16 @@ func TestConfig_SetDefaults(t *testing.T) {
 			},
 			verify: func(t *testing.T, c *Config) {
 				// Verify custom values are preserved
-				if c.Source.Table != "custom_outbox" {
-					t.Errorf("expected custom table to be preserved")
-				}
-				if c.Source.PollInterval != 1*time.Second {
-					t.Errorf("expected custom poll interval to be preserved")
-				}
-				if c.Source.BatchSize != 50 {
-					t.Errorf("expected custom batch size to be preserved")
-				}
-				if c.Delivery.Workers != 8 {
-					t.Errorf("expected custom workers to be preserved")
-				}
-				if c.Delivery.WorkerBufferSize != 20 {
-					t.Errorf("expected custom buffer size to be preserved")
-				}
-				if c.Delivery.MaxRetries != 5 {
-					t.Errorf("expected custom max retries to be preserved")
-				}
-				if c.Delivery.DeadLetterTable != "custom_dlq" {
-					t.Errorf("expected custom dead letter table to be preserved")
-				}
-				if c.Observability.MetricsPort != 8080 {
-					t.Errorf("expected custom metrics port to be preserved")
-				}
-				if c.Observability.LogLevel != "debug" {
-					t.Errorf("expected custom log level to be preserved")
-				}
-				if c.Observability.LogFormat != "text" {
-					t.Errorf("expected custom log format to be preserved")
-				}
+				assert.Equal(t, "custom_outbox", c.Source.Table, "custom table should be preserved")
+				assert.Equal(t, 1*time.Second, c.Source.PollInterval, "custom poll interval should be preserved")
+				assert.Equal(t, 50, c.Source.BatchSize, "custom batch size should be preserved")
+				assert.Equal(t, 8, c.Delivery.Workers, "custom workers should be preserved")
+				assert.Equal(t, 20, c.Delivery.WorkerBufferSize, "custom buffer size should be preserved")
+				assert.Equal(t, 5, c.Delivery.MaxRetries, "custom max retries should be preserved")
+				assert.Equal(t, "custom_dlq", c.Delivery.DeadLetterTable, "custom dead letter table should be preserved")
+				assert.Equal(t, 8080, c.Observability.MetricsPort, "custom metrics port should be preserved")
+				assert.Equal(t, "debug", c.Observability.LogLevel, "custom log level should be preserved")
+				assert.Equal(t, "text", c.Observability.LogFormat, "custom log format should be preserved")
 			},
 		},
 	}
@@ -330,18 +284,12 @@ func TestConfig_Validate(t *testing.T) {
 
 			err := tt.config.Validate()
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error containing '%s', got nil", tt.errMsg)
-				} else if tt.errMsg != "" {
-					// Check if error message contains expected substring
-					if !strings.Contains(err.Error(), tt.errMsg) {
-						t.Errorf("expected error containing '%s', got '%s'", tt.errMsg, err.Error())
-					}
+				require.Error(t, err, "should return validation error")
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg, "error should contain expected message")
 				}
 			} else {
-				if err != nil {
-					t.Errorf("expected no error, got: %v", err)
-				}
+				assert.NoError(t, err, "should not return error for valid config")
 			}
 		})
 	}
@@ -374,45 +322,24 @@ observability:
 `
 
 	tmpFile, err := os.CreateTemp("", "config-*.yaml")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
+	require.NoError(t, err, "should create temp file")
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatalf("failed to write config: %v", err)
-	}
-	tmpFile.Close()
+	_, err = tmpFile.WriteString(content)
+	require.NoError(t, err, "should write config")
+	_ = tmpFile.Close()
 
 	// Load config
 	cfg, err := Load(tmpFile.Name())
-	if err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
+	require.NoError(t, err, "should load config")
 
 	// Verify loaded values
-	if cfg.Source.Type != "polling" {
-		t.Errorf("expected source.type=polling, got %s", cfg.Source.Type)
-	}
-	if cfg.Source.PollInterval != 1*time.Second {
-		t.Errorf("expected poll_interval=1s, got %v", cfg.Source.PollInterval)
-	}
-	if cfg.Source.BatchSize != 50 {
-		t.Errorf("expected batch_size=50, got %d", cfg.Source.BatchSize)
-	}
-	if len(cfg.Publishers) != 1 {
-		t.Fatalf("expected 1 publisher, got %d", len(cfg.Publishers))
-	}
-	if cfg.Publishers[0].Name != "test-webhook" {
-		t.Errorf("expected publisher name=test-webhook, got %s", cfg.Publishers[0].Name)
-	}
-	if cfg.Delivery.Workers != 2 {
-		t.Errorf("expected workers=2, got %d", cfg.Delivery.Workers)
-	}
-	if cfg.Delivery.WorkerBufferSize != 5 {
-		t.Errorf("expected worker_buffer_size=5, got %d", cfg.Delivery.WorkerBufferSize)
-	}
-	if cfg.Observability.LogLevel != "debug" {
-		t.Errorf("expected log_level=debug, got %s", cfg.Observability.LogLevel)
-	}
+	assert.Equal(t, "polling", cfg.Source.Type, "should load source type")
+	assert.Equal(t, 1*time.Second, cfg.Source.PollInterval, "should load poll interval")
+	assert.Equal(t, 50, cfg.Source.BatchSize, "should load batch size")
+	require.Len(t, cfg.Publishers, 1, "should have 1 publisher")
+	assert.Equal(t, "test-webhook", cfg.Publishers[0].Name, "should load publisher name")
+	assert.Equal(t, 2, cfg.Delivery.Workers, "should load workers")
+	assert.Equal(t, 5, cfg.Delivery.WorkerBufferSize, "should load worker buffer size")
+	assert.Equal(t, "debug", cfg.Observability.LogLevel, "should load log level")
 }

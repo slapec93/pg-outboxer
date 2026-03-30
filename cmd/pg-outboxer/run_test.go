@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/slapec93/pg-outboxer/internal/config"
 )
 
@@ -32,35 +35,49 @@ func TestInitSource_Polling(t *testing.T) {
 	if err != nil {
 		// Check for expected database-related errors
 		dbErrors := []string{"connect", "connection", "dial", "database", "does not exist", "not reachable"}
+		errLower := strings.ToLower(err.Error())
 		hasExpectedError := false
 		for _, errStr := range dbErrors {
-			if strings.Contains(strings.ToLower(err.Error()), errStr) {
+			if strings.Contains(errLower, errStr) {
 				hasExpectedError = true
 				break
 			}
 		}
-		if !hasExpectedError {
-			t.Errorf("unexpected error (expected database connection error): %v", err)
-		}
+		assert.True(t, hasExpectedError, "should fail with database connection error, got: %v", err)
 	}
 }
 
-func TestInitSource_CDC_NotImplemented(t *testing.T) {
+func TestInitSource_CDC(t *testing.T) {
 	cfg := &config.Config{
 		Source: config.SourceConfig{
-			Type: "cdc",
-			DSN:  "postgres://localhost/test",
+			Type:        "cdc",
+			DSN:         "postgres://localhost/test",
+			Table:       "outbox",
+			SlotName:    "test_slot",
+			Publication: "test_pub",
+		},
+		Delivery: config.DeliveryConfig{
+			DeadLetterTable: "outbox_dead_letter",
+			MaxRetries:      10,
 		},
 	}
 
+	// Note: This will fail if no database is available, but that's expected
+	// The test verifies the code path and proper error handling
 	_, err := initSource(cfg)
 
-	if err == nil {
-		t.Fatal("expected error for CDC mode, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Errorf("expected 'not yet implemented' error, got: %v", err)
+	// We expect a database connection error (CDC tries to connect)
+	if err != nil {
+		dbErrors := []string{"connect", "connection", "dial", "database", "does not exist", "tls", "replication"}
+		errLower := strings.ToLower(err.Error())
+		hasExpectedError := false
+		for _, errStr := range dbErrors {
+			if strings.Contains(errLower, errStr) {
+				hasExpectedError = true
+				break
+			}
+		}
+		assert.True(t, hasExpectedError, "should fail with database/connection error, got: %v", err)
 	}
 }
 
@@ -74,13 +91,8 @@ func TestInitSource_UnknownType(t *testing.T) {
 
 	_, err := initSource(cfg)
 
-	if err == nil {
-		t.Fatal("expected error for unknown source type, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "unknown source type") {
-		t.Errorf("expected 'unknown source type' error, got: %v", err)
-	}
+	require.Error(t, err, "unknown source type should return error")
+	assert.Contains(t, err.Error(), "unknown source type", "should indicate unknown type")
 }
 
 func TestInitPublisher_Webhook(t *testing.T) {
@@ -92,14 +104,10 @@ func TestInitPublisher_Webhook(t *testing.T) {
 	}
 
 	pub, err := initPublisher(cfg)
-	if err != nil {
-		t.Fatalf("failed to initialize webhook publisher: %v", err)
-	}
-	defer pub.Close()
+	require.NoError(t, err, "should initialize webhook publisher")
+	defer func() { _ = pub.Close() }()
 
-	if pub.Name() != "test-webhook" {
-		t.Errorf("expected name 'test-webhook', got '%s'", pub.Name())
-	}
+	assert.Equal(t, "test-webhook", pub.Name(), "publisher should have correct name")
 }
 
 func TestInitPublisher_RedisNotImplemented(t *testing.T) {
@@ -111,13 +119,8 @@ func TestInitPublisher_RedisNotImplemented(t *testing.T) {
 
 	_, err := initPublisher(cfg)
 
-	if err == nil {
-		t.Fatal("expected error for redis_stream, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Errorf("expected 'not yet implemented' error, got: %v", err)
-	}
+	require.Error(t, err, "redis_stream should return error")
+	assert.Contains(t, err.Error(), "not yet implemented", "should indicate redis not implemented")
 }
 
 func TestInitPublisher_KafkaNotImplemented(t *testing.T) {
@@ -130,13 +133,8 @@ func TestInitPublisher_KafkaNotImplemented(t *testing.T) {
 
 	_, err := initPublisher(cfg)
 
-	if err == nil {
-		t.Fatal("expected error for kafka, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Errorf("expected 'not yet implemented' error, got: %v", err)
-	}
+	require.Error(t, err, "kafka should return error")
+	assert.Contains(t, err.Error(), "not yet implemented", "should indicate kafka not implemented")
 }
 
 func TestInitPublisher_UnknownType(t *testing.T) {
@@ -148,13 +146,8 @@ func TestInitPublisher_UnknownType(t *testing.T) {
 
 	_, err := initPublisher(cfg)
 
-	if err == nil {
-		t.Fatal("expected error for unknown publisher type, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "unknown publisher type") {
-		t.Errorf("expected 'unknown publisher type' error, got: %v", err)
-	}
+	require.Error(t, err, "unknown publisher type should return error")
+	assert.Contains(t, err.Error(), "unknown publisher type", "should indicate unknown type")
 }
 
 func TestInitPublishers_Success(t *testing.T) {
@@ -176,22 +169,12 @@ func TestInitPublishers_Success(t *testing.T) {
 	}
 
 	pubs, err := initPublishers(cfg)
-	if err != nil {
-		t.Fatalf("failed to initialize publishers: %v", err)
-	}
+	require.NoError(t, err, "should initialize publishers")
 	defer closePublishers(pubs)
 
-	if len(pubs) != 2 {
-		t.Errorf("expected 2 publishers, got %d", len(pubs))
-	}
-
-	if pubs[0].Name() != "webhook1" {
-		t.Errorf("expected first publisher name 'webhook1', got '%s'", pubs[0].Name())
-	}
-
-	if pubs[1].Name() != "webhook2" {
-		t.Errorf("expected second publisher name 'webhook2', got '%s'", pubs[1].Name())
-	}
+	require.Len(t, pubs, 2, "should create 2 publishers")
+	assert.Equal(t, "webhook1", pubs[0].Name(), "first publisher should have correct name")
+	assert.Equal(t, "webhook2", pubs[1].Name(), "second publisher should have correct name")
 }
 
 func TestInitPublishers_FailureCleanup(t *testing.T) {
@@ -213,21 +196,10 @@ func TestInitPublishers_FailureCleanup(t *testing.T) {
 
 	pubs, err := initPublishers(cfg)
 
-	if err == nil {
-		t.Fatal("expected error when one publisher fails, got nil")
-	}
-
-	if pubs != nil {
-		t.Error("expected nil publishers on error")
-	}
-
-	if !strings.Contains(err.Error(), "failed to initialize publisher[1]") {
-		t.Errorf("expected error about publisher[1], got: %v", err)
-	}
-
-	if !strings.Contains(err.Error(), "invalid") {
-		t.Errorf("expected error to mention publisher name 'invalid', got: %v", err)
-	}
+	require.Error(t, err, "should fail when one publisher fails")
+	assert.Nil(t, pubs, "should return nil publishers on error")
+	assert.Contains(t, err.Error(), "failed to initialize publisher[1]", "should indicate which publisher failed")
+	assert.Contains(t, err.Error(), "invalid", "should mention publisher name")
 }
 
 func TestInitPublishers_EmptyList(t *testing.T) {
@@ -236,13 +208,8 @@ func TestInitPublishers_EmptyList(t *testing.T) {
 	}
 
 	pubs, err := initPublishers(cfg)
-	if err != nil {
-		t.Fatalf("expected no error for empty list, got: %v", err)
-	}
-
-	if len(pubs) != 0 {
-		t.Errorf("expected 0 publishers, got %d", len(pubs))
-	}
+	require.NoError(t, err, "should handle empty list without error")
+	assert.Empty(t, pubs, "should return empty list")
 }
 
 func TestClosePublishers(t *testing.T) {
@@ -264,18 +231,22 @@ func TestClosePublishers(t *testing.T) {
 	}
 
 	pubs, err := initPublishers(cfg)
-	if err != nil {
-		t.Fatalf("failed to initialize publishers: %v", err)
-	}
+	require.NoError(t, err, "should initialize publishers")
 
-	// Should not panic or error
-	closePublishers(pubs)
+	// Should not panic
+	assert.NotPanics(t, func() { closePublishers(pubs) }, "should close without panic")
 
 	// Should be idempotent
-	closePublishers(pubs)
+	assert.NotPanics(t, func() { closePublishers(pubs) }, "should be idempotent")
 }
 
 func TestClosePublishers_EmptyList(t *testing.T) {
-	// Should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("closePublishers panicked with nil list: %v", r)
+		}
+	}()
+
+	// Should not panic with nil list
 	closePublishers(nil)
 }

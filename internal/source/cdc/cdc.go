@@ -1,3 +1,4 @@
+// Package cdc implements Change Data Capture event streaming from PostgreSQL using logical replication.
 package cdc
 
 import (
@@ -391,14 +392,14 @@ func (c *CDC) sendStandbyStatus(ctx context.Context) error {
 }
 
 // Ack acknowledges successful delivery (marks as delivered in DB)
-func (c *CDC) Ack(ctx context.Context, eventID string) error {
+func (c *CDC) Ack(_ context.Context, _ string) error {
 	// CDC doesn't need to update the database - we just advance the LSN
 	// The actual status update would be done by a separate process if needed
 	return nil
 }
 
 // Nack handles delivery failure (schedules retry or moves to DLQ)
-func (c *CDC) Nack(ctx context.Context, eventID string, err error, retryable bool) error {
+func (c *CDC) Nack(_ context.Context, eventID string, err error, retryable bool) error {
 	// CDC doesn't handle nacks directly - would need a separate connection
 	// For now, log the error
 	slog.Warn("cdc nack received",

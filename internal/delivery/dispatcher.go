@@ -1,3 +1,4 @@
+// Package delivery orchestrates event delivery from sources to publishers.
 package delivery
 
 import (

@@ -8,15 +8,12 @@ run:
 linters:
   enable:
     - errcheck      # Check for unchecked errors
-    - gosimple      # Simplify code
     - govet         # Vet examines Go source code
     - ineffassign   # Detect ineffectual assignments
     - staticcheck   # Static analysis
     - unused        # Check for unused code
-    - goimports     # Check imports (includes formatting)
     - misspell      # Check for misspelled words
     - revive        # Drop-in replacement for golint
-    - stylecheck    # Style checker
     - unconvert     # Remove unnecessary type conversions
     - unparam       # Find unused function parameters
     - gosec         # Security checks

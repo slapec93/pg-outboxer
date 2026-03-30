@@ -214,7 +214,7 @@ type mockPublisherWithCloseError struct {
 	name string
 }
 
-func (m *mockPublisherWithCloseError) Publish(ctx context.Context, event source.Event) PublishResult {
+func (m *mockPublisherWithCloseError) Publish(_ context.Context, _ source.Event) PublishResult {
 	return PublishResult{Success: true}
 }
 

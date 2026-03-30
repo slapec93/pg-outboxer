@@ -1,3 +1,4 @@
+// Package source defines the interface for outbox event sources.
 package source
 
 import (

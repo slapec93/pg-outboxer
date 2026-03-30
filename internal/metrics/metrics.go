@@ -1,3 +1,4 @@
+// Package metrics provides Prometheus metrics for monitoring pg-outboxer.
 package metrics
 
 import (

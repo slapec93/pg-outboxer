@@ -1,3 +1,4 @@
+// Package main provides the CLI for pg-outboxer.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Package webhook implements an HTTP webhook publisher for outbox events.
 package webhook
 
 import (
@@ -53,7 +54,7 @@ func New(cfg *config.PublisherConfig) (*Webhook, error) {
 	client := &http.Client{
 		Timeout: cfg.Timeout,
 		// Don't follow redirects automatically
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -149,7 +150,7 @@ func (w *Webhook) Publish(ctx context.Context, event source.Event) (result publi
 			ErrorMsg:  fmt.Sprintf("request failed: %v", err),
 		}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response body (limited to 1MB to prevent memory issues)
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))

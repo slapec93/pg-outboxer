@@ -1,3 +1,4 @@
+// Package publisher test helpers.
 package publisher
 
 import (
@@ -13,7 +14,7 @@ type mockPublisher struct {
 	closed bool
 }
 
-func (m *mockPublisher) Publish(ctx context.Context, event source.Event) PublishResult {
+func (m *mockPublisher) Publish(_ context.Context, _ source.Event) PublishResult {
 	return m.result
 }
 

@@ -32,7 +32,7 @@ func TestPoller_New(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	if poller.db == nil {
 		t.Error("expected db to be initialized")
@@ -66,7 +66,7 @@ func TestPoller_Poll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	// Insert test events
 	id1 := insertTestEvent(t, testDB.db, "order", "order-1", "order.created")
@@ -133,14 +133,14 @@ func TestPoller_Ack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	// Insert and poll event
 	eventID := insertTestEvent(t, testDB.db, "order", "order-1", "order.created")
 
 	ctx := context.Background()
 	eventChan := make(chan source.Event, 10)
-	poller.poll(ctx, eventChan)
+	_ = poller.poll(ctx, eventChan)
 
 	// Ack the event
 	err = poller.Ack(ctx, eventID)
@@ -186,14 +186,14 @@ func TestPoller_Nack_Retryable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	// Insert and poll event
 	eventID := insertTestEvent(t, testDB.db, "order", "order-1", "order.created")
 
 	ctx := context.Background()
 	eventChan := make(chan source.Event, 10)
-	poller.poll(ctx, eventChan)
+	_ = poller.poll(ctx, eventChan)
 
 	// Nack with retryable error
 	err = poller.Nack(ctx, eventID, fmt.Errorf("temporary error"), true)
@@ -251,14 +251,14 @@ func TestPoller_Nack_NonRetryable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	// Insert and poll event
 	eventID := insertTestEvent(t, testDB.db, "order", "order-1", "order.created")
 
 	ctx := context.Background()
 	eventChan := make(chan source.Event, 10)
-	poller.poll(ctx, eventChan)
+	_ = poller.poll(ctx, eventChan)
 
 	// Nack with non-retryable error
 	err = poller.Nack(ctx, eventID, fmt.Errorf("permanent error"), false)
@@ -311,7 +311,7 @@ func TestPoller_Nack_MaxRetries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create poller: %v", err)
 	}
-	defer poller.Close()
+	defer func() { _ = poller.Close() }()
 
 	// Insert event
 	eventID := insertTestEvent(t, testDB.db, "order", "order-1", "order.created")
@@ -321,7 +321,7 @@ func TestPoller_Nack_MaxRetries(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		// Poll
 		eventChan := make(chan source.Event, 10)
-		poller.poll(ctx, eventChan)
+		_ = poller.poll(ctx, eventChan)
 
 		// Nack with retryable error
 		err = poller.Nack(ctx, eventID, fmt.Errorf("retry %d", i+1), true)

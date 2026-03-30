@@ -25,7 +25,7 @@ func init() {
 	rootCmd.AddCommand(validateCmd)
 }
 
-func validateConfig(cmd *cobra.Command, args []string) error {
+func validateConfig(*cobra.Command, []string) error {
 	fmt.Printf("Validating config file: %s\n\n", cfgFile)
 
 	cfg, err := config.Load(cfgFile)

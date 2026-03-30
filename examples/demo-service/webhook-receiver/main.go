@@ -1,3 +1,4 @@
+// Package main provides a webhook receiver for testing pg-outboxer.
 package main
 
 import (
@@ -46,7 +47,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	// Parse event
 	var event Event
@@ -77,7 +78,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func handleGetEvents(w http.ResponseWriter, r *http.Request) {
@@ -90,17 +91,17 @@ func handleGetEvents(w http.ResponseWriter, r *http.Request) {
 	defer mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"total":  len(events),
 		"events": events,
 	})
 }
 
-func handleHealth(w http.ResponseWriter, r *http.Request) {
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	mu.RLock()
 	count := len(events)
 	mu.RUnlock()
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK - %d events received", count)
+	_, _ = fmt.Fprintf(w, "OK - %d events received", count)
 }

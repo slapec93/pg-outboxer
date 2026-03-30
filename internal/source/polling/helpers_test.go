@@ -1,3 +1,4 @@
+// Package polling test helpers for integration testing.
 package polling
 
 import (
@@ -104,7 +105,7 @@ func (td *testDB) cleanup(t *testing.T) {
 	t.Helper()
 
 	if td.db != nil {
-		td.db.Close()
+		_ = td.db.Close()
 	}
 	if td.container != nil {
 		if err := td.container.Terminate(context.Background()); err != nil {

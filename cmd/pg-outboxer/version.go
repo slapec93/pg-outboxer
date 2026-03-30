@@ -17,7 +17,7 @@ var (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(*cobra.Command, []string) {
 		fmt.Printf("pg-outboxer %s\n", version)
 		fmt.Printf("  commit:  %s\n", commit)
 		fmt.Printf("  built:   %s\n", date)

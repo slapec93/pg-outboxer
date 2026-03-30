@@ -41,7 +41,7 @@ func (m *mockSource) Start(ctx context.Context, out chan<- source.Event) error {
 	return ctx.Err()
 }
 
-func (m *mockSource) Ack(ctx context.Context, eventID string) error {
+func (m *mockSource) Ack(_ context.Context, eventID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.acked == nil {
@@ -51,7 +51,7 @@ func (m *mockSource) Ack(ctx context.Context, eventID string) error {
 	return nil
 }
 
-func (m *mockSource) Nack(ctx context.Context, eventID string, err error, retryable bool) error {
+func (m *mockSource) Nack(_ context.Context, eventID string, err error, retryable bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.nacked == nil {
@@ -93,7 +93,7 @@ type mockPublisher struct {
 	mu        sync.Mutex
 }
 
-func (m *mockPublisher) Publish(ctx context.Context, event source.Event) publisher.PublishResult {
+func (m *mockPublisher) Publish(_ context.Context, event source.Event) publisher.PublishResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.published = append(m.published, event)

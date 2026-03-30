@@ -47,7 +47,7 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 }
 
-func runSetup(cmd *cobra.Command, args []string) error {
+func runSetup(*cobra.Command, []string) error {
 	slog.Info("starting pg-outboxer setup", "config", cfgFile)
 
 	// Load config
@@ -66,7 +66,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -110,7 +110,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runMigrations(ctx context.Context, db *sql.DB, cfg *config.Config) error {
+func runMigrations(ctx context.Context, db *sql.DB, _ *config.Config) error {
 	// Read all migration files
 	entries, err := migrationsFS.ReadDir("migrations")
 	if err != nil {

@@ -35,7 +35,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 }
 
-func runDaemon(cmd *cobra.Command, args []string) error {
+func runDaemon(*cobra.Command, []string) error {
 	slog.Info("starting pg-outboxer", "config", cfgFile)
 
 	// Load and validate config
@@ -63,7 +63,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize source: %w", err)
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 	slog.Info("source initialized", "type", cfg.Source.Type)
 
 	// Initialize publishers

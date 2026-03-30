@@ -35,7 +35,7 @@ func New(cfg *config.Config) (*Poller, error) {
 
 	// Test connection
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("database not reachable: %w", err)
 	}
 
@@ -118,7 +118,7 @@ func (p *Poller) poll(ctx context.Context, out chan<- source.Event) error {
 	if err != nil {
 		return fmt.Errorf("failed to query outbox: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	for rows.Next() {
@@ -267,7 +267,7 @@ func (p *Poller) moveToDeadLetter(ctx context.Context, eventID string, errorMsg 
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Copy to dead letter table
 	query := fmt.Sprintf(`

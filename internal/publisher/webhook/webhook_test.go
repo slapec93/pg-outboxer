@@ -32,7 +32,7 @@ func TestWebhook_New(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create webhook: %v", err)
 	}
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	if webhook.name != "test-webhook" {
 		t.Errorf("expected name 'test-webhook', got '%s'", webhook.name)
@@ -133,7 +133,7 @@ func TestWebhook_PublishSuccess(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{
 		ID:            "event-123",
@@ -174,7 +174,7 @@ func TestWebhook_PublishWithSignature(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	payload := []byte(`{"test": true}`)
 	event := source.Event{
@@ -220,7 +220,7 @@ func TestWebhook_PublishWithCustomHeaders(t *testing.T) {
 		var envelope struct {
 			Headers map[string]string `json:"headers"`
 		}
-		json.Unmarshal(body, &envelope)
+		_ = json.Unmarshal(body, &envelope)
 
 		if envelope.Headers["Foo"] != "bar" {
 			t.Errorf("expected envelope.headers.Foo='bar', got '%s'", envelope.Headers["Foo"])
@@ -240,7 +240,7 @@ func TestWebhook_PublishWithCustomHeaders(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{
 		ID:            "event-123",
@@ -271,14 +271,14 @@ func TestWebhook_Publish2xxSuccess(t *testing.T) {
 
 	for _, statusCode := range successCodes {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(statusCode)
 			}))
 			defer server.Close()
 
 			cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 			webhook, _ := New(cfg)
-			defer webhook.Close()
+			defer func() { _ = webhook.Close() }()
 
 			event := source.Event{ID: "event-123", EventType: "test", AggregateType: "test", AggregateID: "agg-1", Payload: []byte(`{}`), CreatedAt: time.Now()}
 			result := webhook.Publish(context.Background(), event)
@@ -291,15 +291,15 @@ func TestWebhook_Publish2xxSuccess(t *testing.T) {
 }
 
 func TestWebhook_Publish429Retryable(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte("rate limit exceeded"))
+		_, _ = w.Write([]byte("rate limit exceeded"))
 	}))
 	defer server.Close()
 
 	cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{ID: "event-123", EventType: "test", AggregateID: "agg-1"}
 	result := webhook.Publish(context.Background(), event)
@@ -320,15 +320,15 @@ func TestWebhook_Publish5xxRetryable(t *testing.T) {
 
 	for _, statusCode := range serverErrors {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(statusCode)
-				w.Write([]byte("server error"))
+				_, _ = w.Write([]byte("server error"))
 			}))
 			defer server.Close()
 
 			cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 			webhook, _ := New(cfg)
-			defer webhook.Close()
+			defer func() { _ = webhook.Close() }()
 
 			event := source.Event{ID: "event-123", EventType: "test", AggregateType: "test", AggregateID: "agg-1", Payload: []byte(`{}`), CreatedAt: time.Now()}
 			result := webhook.Publish(context.Background(), event)
@@ -348,15 +348,15 @@ func TestWebhook_Publish4xxFatal(t *testing.T) {
 
 	for _, statusCode := range clientErrors {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(statusCode)
-				w.Write([]byte("client error"))
+				_, _ = w.Write([]byte("client error"))
 			}))
 			defer server.Close()
 
 			cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 			webhook, _ := New(cfg)
-			defer webhook.Close()
+			defer func() { _ = webhook.Close() }()
 
 			event := source.Event{ID: "event-123", EventType: "test", AggregateType: "test", AggregateID: "agg-1", Payload: []byte(`{}`), CreatedAt: time.Now()}
 			result := webhook.Publish(context.Background(), event)
@@ -376,7 +376,7 @@ func TestWebhook_Publish3xxFatal(t *testing.T) {
 
 	for _, statusCode := range redirects {
 		t.Run(http.StatusText(statusCode), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Location", "https://example.com/new")
 				w.WriteHeader(statusCode)
 			}))
@@ -384,7 +384,7 @@ func TestWebhook_Publish3xxFatal(t *testing.T) {
 
 			cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 			webhook, _ := New(cfg)
-			defer webhook.Close()
+			defer func() { _ = webhook.Close() }()
 
 			event := source.Event{ID: "event-123", EventType: "test", AggregateType: "test", AggregateID: "agg-1", Payload: []byte(`{}`), CreatedAt: time.Now()}
 			result := webhook.Publish(context.Background(), event)
@@ -408,7 +408,7 @@ func TestWebhook_PublishNetworkError(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{ID: "event-123", EventType: "test", AggregateID: "agg-1"}
 	result := webhook.Publish(context.Background(), event)
@@ -423,7 +423,7 @@ func TestWebhook_PublishNetworkError(t *testing.T) {
 
 func TestWebhook_PublishTimeout(t *testing.T) {
 	// Server that delays response
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -436,7 +436,7 @@ func TestWebhook_PublishTimeout(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{ID: "event-123", EventType: "test", AggregateID: "agg-1"}
 	result := webhook.Publish(context.Background(), event)
@@ -456,7 +456,7 @@ func TestWebhook_Name(t *testing.T) {
 	}
 
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	if webhook.Name() != "my-webhook" {
 		t.Errorf("expected name 'my-webhook', got '%s'", webhook.Name())
@@ -486,15 +486,15 @@ func TestWebhook_Close(t *testing.T) {
 func TestWebhook_TruncatesLongResponseBody(t *testing.T) {
 	longBody := strings.Repeat("x", 500) // Longer than 200 char limit
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(longBody))
+		_, _ = w.Write([]byte(longBody))
 	}))
 	defer server.Close()
 
 	cfg := &config.PublisherConfig{Name: "test", URL: server.URL}
 	webhook, _ := New(cfg)
-	defer webhook.Close()
+	defer func() { _ = webhook.Close() }()
 
 	event := source.Event{ID: "event-123", EventType: "test", AggregateID: "agg-1"}
 	result := webhook.Publish(context.Background(), event)

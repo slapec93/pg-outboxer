@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/slapec93/pg-outboxer/internal/publisher"
 	"github.com/slapec93/pg-outboxer/internal/source"
 )
@@ -31,30 +34,22 @@ func TestDispatcher_AllEventsSucceed(t *testing.T) {
 
 	// Start dispatcher (will run until context is cancelled)
 	err := dispatcher.Start(ctx)
-	if err != context.DeadlineExceeded {
-		t.Errorf("expected DeadlineExceeded, got: %v", err)
-	}
+	assert.ErrorIs(t, err, context.DeadlineExceeded, "dispatcher should timeout")
 
 	// Wait a bit for async processing
 	time.Sleep(50 * time.Millisecond)
 
 	// Verify all events were published
 	published := pub.getPublished()
-	if len(published) != 3 {
-		t.Errorf("expected 3 published events, got %d", len(published))
-	}
+	assert.Len(t, published, 3, "all events should be published")
 
 	// Verify all events were acked
 	acked := src.getAcked()
-	if len(acked) != 3 {
-		t.Errorf("expected 3 acked events, got %d", len(acked))
-	}
+	assert.Len(t, acked, 3, "all events should be acked")
 
 	// Verify no events were nacked
 	nacked := src.getNacked()
-	if len(nacked) != 0 {
-		t.Errorf("expected 0 nacked events, got %d", len(nacked))
-	}
+	assert.Empty(t, nacked, "no events should be nacked")
 }
 
 func TestDispatcher_SomeEventsFail(t *testing.T) {
@@ -80,35 +75,25 @@ func TestDispatcher_SomeEventsFail(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	dispatcher.Start(ctx)
+	go func() { _ = dispatcher.Start(ctx) }()
 	time.Sleep(50 * time.Millisecond)
 
 	// Verify all events were published (attempted)
 	published := pub.getPublished()
-	if len(published) != 2 {
-		t.Errorf("expected 2 published events, got %d", len(published))
-	}
+	assert.Len(t, published, 2, "both events should be attempted")
 
 	// Verify no events were acked
 	acked := src.getAcked()
-	if len(acked) != 0 {
-		t.Errorf("expected 0 acked events, got %d", len(acked))
-	}
+	assert.Empty(t, acked, "failed events should not be acked")
 
 	// Verify all events were nacked
 	nacked := src.getNacked()
-	if len(nacked) != 2 {
-		t.Errorf("expected 2 nacked events, got %d", len(nacked))
-	}
+	require.Len(t, nacked, 2, "both events should be nacked")
 
 	// Verify nacked events are retryable
 	for id, ne := range nacked {
-		if !ne.retryable {
-			t.Errorf("expected event %s to be retryable", id)
-		}
-		if ne.err.Error() != "temporary error" {
-			t.Errorf("expected error 'temporary error', got '%s'", ne.err.Error())
-		}
+		assert.True(t, ne.retryable, "event %s should be retryable", id)
+		assert.EqualError(t, ne.err, "temporary error", "event %s should have correct error", id)
 	}
 }
 
@@ -134,19 +119,15 @@ func TestDispatcher_FatalError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	dispatcher.Start(ctx)
+	go func() { _ = dispatcher.Start(ctx) }()
 	time.Sleep(50 * time.Millisecond)
 
 	// Verify event was nacked as non-retryable
 	nacked := src.getNacked()
-	if len(nacked) != 1 {
-		t.Fatalf("expected 1 nacked event, got %d", len(nacked))
-	}
+	require.Len(t, nacked, 1, "event should be nacked")
 
 	ne := nacked["evt-1"]
-	if ne.retryable {
-		t.Error("expected event to be non-retryable (fatal)")
-	}
+	assert.False(t, ne.retryable, "fatal error should not be retryable")
 }
 
 func TestDispatcher_SelectWorker(t *testing.T) {
@@ -160,9 +141,8 @@ func TestDispatcher_SelectWorker(t *testing.T) {
 	worker2 := dispatcher.selectWorker("order-123")
 	worker3 := dispatcher.selectWorker("order-123")
 
-	if worker1 != worker2 || worker2 != worker3 {
-		t.Errorf("expected same worker for same aggregate_id, got %d, %d, %d", worker1, worker2, worker3)
-	}
+	assert.Equal(t, worker1, worker2, "same aggregate should route to same worker")
+	assert.Equal(t, worker2, worker3, "same aggregate should route to same worker")
 
 	// Test that different aggregate_ids can go to different workers
 	// (not guaranteed, but likely with 4 workers and different IDs)
@@ -173,16 +153,13 @@ func TestDispatcher_SelectWorker(t *testing.T) {
 	}
 
 	// With 100 different aggregates and 4 workers, we should use multiple workers
-	if len(workers) < 2 {
-		t.Error("expected hash to distribute across multiple workers")
-	}
+	assert.GreaterOrEqual(t, len(workers), 2, "hash should distribute across multiple workers")
 
 	// Test that worker ID is within bounds
 	for i := range 20 {
 		workerID := dispatcher.selectWorker(fmt.Sprintf("test-%d", i))
-		if workerID < 0 || workerID >= 4 {
-			t.Errorf("worker ID %d out of bounds [0, 4)", workerID)
-		}
+		assert.GreaterOrEqual(t, workerID, 0, "worker ID should be >= 0")
+		assert.Less(t, workerID, 4, "worker ID should be < 4")
 	}
 }
 
@@ -218,18 +195,14 @@ func TestDispatcher_GracefulShutdown(t *testing.T) {
 	// Wait for shutdown
 	select {
 	case err := <-done:
-		if err != context.Canceled {
-			t.Errorf("expected Canceled error, got: %v", err)
-		}
+		assert.ErrorIs(t, err, context.Canceled, "should return Canceled error on graceful shutdown")
 	case <-time.After(1 * time.Second):
 		t.Fatal("shutdown timed out")
 	}
 
 	// Verify events were processed before shutdown
 	acked := src.getAcked()
-	if len(acked) != 2 {
-		t.Errorf("expected 2 acked events after shutdown, got %d", len(acked))
-	}
+	assert.Len(t, acked, 2, "events should be processed before shutdown")
 }
 
 func TestDispatcher_WorkerCount(t *testing.T) {
@@ -242,15 +215,11 @@ func TestDispatcher_WorkerCount(t *testing.T) {
 		t.Run(fmt.Sprintf("workers=%d", numWorkers), func(t *testing.T) {
 			dispatcher := New(src, pub, numWorkers, 5)
 
-			if len(dispatcher.workers) != numWorkers {
-				t.Errorf("expected %d workers, got %d", numWorkers, len(dispatcher.workers))
-			}
+			assert.Len(t, dispatcher.workers, numWorkers, "should create correct number of workers")
 
-			// Verify worker IDs
+			// Verify worker IDs are sequential
 			for i, w := range dispatcher.workers {
-				if w.id != i {
-					t.Errorf("worker %d has wrong id: %d", i, w.id)
-				}
+				assert.Equal(t, i, w.id, "worker %d should have sequential ID", i)
 			}
 		})
 	}

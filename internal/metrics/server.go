@@ -69,13 +69,13 @@ func (s *Server) SetHealthy(healthy bool) {
 }
 
 // handleHealth returns 200 if service is healthy
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	if s.healthy.Load() {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("Unhealthy"))
+		_, _ = w.Write([]byte("Unhealthy"))
 	}
 }
 
@@ -87,8 +87,8 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleLiveness returns 200 if service is alive (not deadlocked)
-func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleLiveness(w http.ResponseWriter, _ *http.Request) {
 	// Always return OK if we can respond
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
