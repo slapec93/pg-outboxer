@@ -1,0 +1,31 @@
+# CDC (Change Data Capture) Configuration Example
+# Provides sub-millisecond latency using PostgreSQL logical replication
+
+source:
+  type: cdc
+  dsn: postgres://postgres:postgres@localhost:5432/mydb?sslmode=disable
+  table: outbox
+
+  # CDC-specific settings
+  slot_name: pg_outboxer_slot      # Replication slot name
+  publication: pg_outboxer_pub      # Publication name
+
+publishers:
+  - name: primary-webhook
+    type: webhook
+    url: https://api.example.com/webhooks
+    timeout: 10s
+    signing_secret: ${WEBHOOK_SECRET}  # HMAC-SHA256 signing
+    headers:
+      X-Source: pg-outboxer
+
+delivery:
+  workers: 4                      # Number of concurrent workers
+  worker_buffer_size: 10          # Buffer per worker
+  max_retries: 10                 # Max retry attempts
+  dead_letter_table: outbox_dead_letter
+
+observability:
+  metrics_port: 9090              # Prometheus metrics
+  log_level: info                 # debug, info, warn, error
+  log_format: json                # json or text

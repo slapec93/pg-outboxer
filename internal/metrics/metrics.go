@@ -76,6 +76,66 @@ var (
 		},
 		[]string{"queue"}, // "pending", "processing"
 	)
+
+	// CDC-specific metrics
+
+	// ReplicationLagBytes tracks CDC replication lag in bytes
+	ReplicationLagBytes = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pg_outboxer_replication_lag_bytes",
+			Help: "CDC replication lag in bytes (distance from current WAL position)",
+		},
+	)
+
+	// ReplicationSlotActive indicates if replication connection is active
+	ReplicationSlotActive = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pg_outboxer_replication_slot_active",
+			Help: "Whether the CDC replication slot is active (1=active, 0=inactive)",
+		},
+	)
+
+	// WALMessagesReceived tracks total WAL messages received
+	WALMessagesReceived = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "pg_outboxer_wal_messages_total",
+			Help: "Total number of WAL messages received by type",
+		},
+		[]string{"type"}, // xlog_data, keepalive, relation, insert, update, delete, etc.
+	)
+
+	// CDCEventsDecoded tracks events successfully decoded from WAL
+	CDCEventsDecoded = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "pg_outboxer_cdc_events_decoded_total",
+			Help: "Total number of events successfully decoded from CDC stream",
+		},
+	)
+
+	// CDCDecodingErrors tracks decoding failures
+	CDCDecodingErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "pg_outboxer_cdc_decoding_errors_total",
+			Help: "Total number of CDC decoding errors by type",
+		},
+		[]string{"error_type"}, // parse_error, invalid_schema, etc.
+	)
+
+	// CDCConnectionErrors tracks connection issues
+	CDCConnectionErrors = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "pg_outboxer_cdc_connection_errors_total",
+			Help: "Total number of CDC connection errors",
+		},
+	)
+
+	// LastWALPosition tracks the last processed WAL LSN
+	LastWALPosition = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pg_outboxer_last_wal_position",
+			Help: "Last processed WAL LSN position (Log Sequence Number)",
+		},
+	)
 )
 
 // RecordEventSuccess records a successful event delivery
@@ -115,4 +175,45 @@ func RecordRetry(retryCount int) {
 // RecordDeadLetter records an event moved to dead letter
 func RecordDeadLetter() {
 	DeadLetterEvents.Inc()
+}
+
+// CDC Metrics Functions
+
+// RecordReplicationLag updates the replication lag in bytes
+func RecordReplicationLag(lagBytes int64) {
+	ReplicationLagBytes.Set(float64(lagBytes))
+}
+
+// RecordReplicationActive sets whether replication is active
+func RecordReplicationActive(active bool) {
+	if active {
+		ReplicationSlotActive.Set(1)
+	} else {
+		ReplicationSlotActive.Set(0)
+	}
+}
+
+// RecordWALMessage records a WAL message received
+func RecordWALMessage(msgType string) {
+	WALMessagesReceived.WithLabelValues(msgType).Inc()
+}
+
+// RecordCDCEventDecoded records a successfully decoded CDC event
+func RecordCDCEventDecoded() {
+	CDCEventsDecoded.Inc()
+}
+
+// RecordCDCDecodingError records a decoding error
+func RecordCDCDecodingError(errorType string) {
+	CDCDecodingErrors.WithLabelValues(errorType).Inc()
+}
+
+// RecordCDCConnectionError records a connection error
+func RecordCDCConnectionError() {
+	CDCConnectionErrors.Inc()
+}
+
+// RecordWALPosition records the last processed WAL position
+func RecordWALPosition(lsn uint64) {
+	LastWALPosition.Set(float64(lsn))
 }

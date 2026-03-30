@@ -17,6 +17,7 @@ import (
 	"github.com/slapec93/pg-outboxer/internal/publisher"
 	"github.com/slapec93/pg-outboxer/internal/publisher/webhook"
 	"github.com/slapec93/pg-outboxer/internal/source"
+	"github.com/slapec93/pg-outboxer/internal/source/cdc"
 	"github.com/slapec93/pg-outboxer/internal/source/polling"
 )
 
@@ -121,7 +122,7 @@ func initSource(cfg *config.Config) (source.Source, error) {
 	case "polling":
 		return polling.New(cfg)
 	case "cdc":
-		return nil, fmt.Errorf("CDC mode not yet implemented")
+		return cdc.New(cfg)
 	default:
 		return nil, fmt.Errorf("unknown source type: %s", cfg.Source.Type)
 	}

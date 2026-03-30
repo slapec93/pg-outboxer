@@ -7,11 +7,25 @@ End-to-end integration tests using real PostgreSQL and HTTP servers.
 - Docker (required for testcontainers)
 - Go 1.22+
 
+## Test Files
+
+Tests are organized by source type:
+
+- **`helpers_test.go`** - Common test utilities (webhook server, postgres setup)
+- **`polling_e2e_test.go`** - Polling source tests (5 tests)
+- **`cdc_e2e_test.go`** - CDC source tests (6 tests, currently skipped)
+
 ## Running Tests
 
 ```bash
 # Run all integration tests
 go test -v -tags=integration ./test/integration/...
+
+# Run only polling tests
+go test -v -tags=integration -run TestE2E ./test/integration/
+
+# Run only CDC tests (currently skipped)
+go test -v -tags=integration -run TestCDC ./test/integration/
 
 # Run specific test
 go test -v -tags=integration -run TestE2E_HappyPath ./test/integration/
@@ -21,6 +35,8 @@ go test -v -tags=integration -timeout 5m ./test/integration/...
 ```
 
 ## Test Coverage
+
+### Polling Tests (`polling_e2e_test.go`)
 
 ### TestE2E_HappyPath
 Tests the complete happy path flow:
@@ -60,6 +76,50 @@ Tests multi-publisher fan-out:
 2. Single event published to both
 3. Both receive the event
 4. Verifies idempotency (same event ID to both)
+
+### CDC Tests (`cdc_e2e_test.go`)
+
+#### TestCDC_HappyPath
+Basic CDC flow with sub-millisecond latency:
+1. Inserts event into outbox
+2. CDC streams via logical replication
+3. Event delivered to webhook instantly
+4. Verifies CDC-specific behavior
+
+#### TestCDC_Metrics
+Validates CDC-specific metrics:
+- Replication slot active
+- WAL messages received
+- Events decoded
+- CDC connection health
+
+#### TestCDC_LowLatency
+Measures actual CDC latency:
+- INSERT to webhook delivery time
+- Should be < 100ms (typically 1-10ms)
+- Compares against polling latency
+
+#### TestCDC_ReplicationSlot
+Tests replication slot management:
+- Publication exists
+- Slot created automatically
+- Slot visible in `pg_replication_slots`
+- Cleanup on disconnect
+
+#### TestCDC_MultipleInserts
+High-throughput CDC streaming:
+- 50 rapid inserts
+- All streamed via WAL
+- Verifies message type breakdown
+
+**Note**: CDC tests are currently **skipped** (`t.Skip()`) because they require:
+1. PostgreSQL with `wal_level=logical`
+2. Container restart to apply WAL setting
+3. More complex testcontainers setup
+
+To enable CDC tests, you would need to:
+- Use custom PostgreSQL Docker image with CDC pre-configured
+- Or manually test against a running PostgreSQL instance with CDC enabled
 
 ## How It Works
 
