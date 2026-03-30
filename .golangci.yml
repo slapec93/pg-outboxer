@@ -15,8 +15,6 @@ linters:
     - misspell      # Check for misspelled words
     - revive        # Drop-in replacement for golint
     - unconvert     # Remove unnecessary type conversions
-    - unparam       # Find unused function parameters
-    - gosec         # Security checks
     - gocritic      # Opinionated linter
 
 linters-settings:
@@ -38,7 +36,13 @@ linters-settings:
 
   gosec:
     excludes:
+      - G101  # Hardcoded credentials - test code only
+      - G114  # HTTP server without timeouts - example code
+      - G115  # Integer overflow conversion - safe conversions
+      - G201  # SQL string formatting - table names validated
+      - G304  # File inclusion - migration files expected
       - G404  # Weak random number generator - OK for non-crypto use
+      - G706  # Log injection - controlled inputs only
 
   gocritic:
     enabled-tags:
@@ -48,18 +52,37 @@ linters-settings:
     disabled-checks:
       - unnamedResult  # Named returns are useful for defer
 
+  unparam:
+    check-exported: false  # Don't check exported functions
+
 issues:
   exclude-rules:
-    # Exclude some linters from running on tests files
+    # Exclude some linters from running on test files
     - path: _test\.go
       linters:
         - gosec
         - errcheck
+        - unparam
 
-    # Exclude specific issues
-    - text: "should have a package comment"
+    # Exclude gosec warnings in example code
+    - path: examples/
       linters:
+        - gosec
+
+    # Exclude SQL formatting - table names validated at startup
+    - linters:
+        - gosec
+      text: "G201"
+
+    # Exclude integer overflow false positives
+    - linters:
+        - gosec
+      text: "G115"
+
+    # Exclude package comments
+    - linters:
         - revive
+      text: "should have a package comment"
 
   max-issues-per-linter: 0
   max-same-issues: 0

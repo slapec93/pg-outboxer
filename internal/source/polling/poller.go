@@ -313,7 +313,7 @@ func calculateRetryAfter(attempt int) time.Duration {
 	)
 
 	// Calculate exponential backoff
-	delay := baseDelay * (1 << uint(attempt-1)) // 2^(attempt-1)
+	delay := baseDelay * (1 << (attempt - 1)) // 2^(attempt-1)
 	delay = min(delay, maxDelay)
 
 	// Apply full jitter: random in [0, delay]

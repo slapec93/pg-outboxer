@@ -95,7 +95,7 @@ func (d *Dispatcher) Start(ctx context.Context) error {
 // Uses consistent hashing on aggregate_id to ensure ordering per aggregate.
 func (d *Dispatcher) selectWorker(aggregateID string) int {
 	h := fnv.New32a()
-	h.Write([]byte(aggregateID))
+	_, _ = h.Write([]byte(aggregateID)) // hash.Hash.Write never returns an error
 	return int(h.Sum32()) % len(d.workers)
 }
 

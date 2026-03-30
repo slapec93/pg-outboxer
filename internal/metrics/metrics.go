@@ -2,6 +2,8 @@
 package metrics
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -168,7 +170,7 @@ func RecordRetry(retryCount int) {
 	// Cap at 10+ for cardinality
 	label := "10+"
 	if retryCount < 10 {
-		label = string(rune('0' + retryCount))
+		label = fmt.Sprintf("%d", retryCount)
 	}
 	EventRetries.WithLabelValues(label).Inc()
 }
