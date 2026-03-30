@@ -23,7 +23,6 @@ import (
 
 // Polling-specific integration tests
 
-
 func TestE2E_HappyPath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

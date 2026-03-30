@@ -19,15 +19,15 @@ import (
 
 // CDC implements the Source interface using PostgreSQL logical replication (CDC)
 type CDC struct {
-	conn         *pgconn.PgConn
-	config       *config.SourceConfig
-	slotName     string
-	publication  string
-	tableName    string
-	dlqTable     string
-	maxRetries   int
+	conn          *pgconn.PgConn
+	config        *config.SourceConfig
+	slotName      string
+	publication   string
+	tableName     string
+	dlqTable      string
+	maxRetries    int
 	clientXLogPos pglogrepl.LSN
-	typeMap      *pgtype.Map
+	typeMap       *pgtype.Map
 }
 
 // New creates a new CDC source

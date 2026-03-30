@@ -36,9 +36,9 @@ func NewServer(port int) *Server {
 
 	// Health check endpoints
 	mux.HandleFunc("/health", s.handleHealth)
-	mux.HandleFunc("/healthz", s.handleHealth)   // K8s style
-	mux.HandleFunc("/ready", s.handleReadiness)  // K8s readiness
-	mux.HandleFunc("/live", s.handleLiveness)    // K8s liveness
+	mux.HandleFunc("/healthz", s.handleHealth)  // K8s style
+	mux.HandleFunc("/ready", s.handleReadiness) // K8s readiness
+	mux.HandleFunc("/live", s.handleLiveness)   // K8s liveness
 
 	// Set healthy by default
 	s.healthy.Store(true)
