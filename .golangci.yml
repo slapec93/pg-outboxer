@@ -13,8 +13,7 @@ linters:
     - ineffassign   # Detect ineffectual assignments
     - staticcheck   # Static analysis
     - unused        # Check for unused code
-    - gofmt         # Check formatting
-    - goimports     # Check imports
+    - goimports     # Check imports (includes formatting)
     - misspell      # Check for misspelled words
     - revive        # Drop-in replacement for golint
     - stylecheck    # Style checker
