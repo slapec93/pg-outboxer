@@ -51,11 +51,12 @@ source:
   poll_interval: 500ms
   batch_size: 100
 
-publisher:
-  type: webhook
-  url: https://your-service.com/events
-  timeout: 10s
-  signing_secret: ${WEBHOOK_SECRET}      # Optional HMAC signing
+publishers:
+  - name: primary-webhook
+    type: webhook
+    url: https://your-service.com/events
+    timeout: 10s
+    signing_secret: ${WEBHOOK_SECRET}    # Optional HMAC signing
 
 delivery:
   workers: 4
@@ -240,12 +241,15 @@ source:
 Prometheus metrics available at `:9090/metrics`:
 
 ```
-pg_outboxer_events_processed_total{publisher, status}
-pg_outboxer_events_inflight
-pg_outboxer_delivery_latency_seconds{publisher}
-pg_outboxer_replication_lag_bytes  # CDC mode only
-pg_outboxer_dead_letter_total
-pg_outboxer_retry_queue_depth
+pg_outboxer_events_processed_total{outcome}           # success, failed_retryable, failed_fatal
+pg_outboxer_events_published_total{publisher, status} # per-publisher delivery status
+pg_outboxer_publish_duration_seconds{publisher}       # publish latency histogram
+pg_outboxer_event_retries_total{retry_count}          # retry attempts
+pg_outboxer_dead_letter_events_total                  # events moved to DLQ
+pg_outboxer_active_workers                            # number of worker goroutines
+pg_outboxer_queue_depth{queue}                        # pending/processing queue depth
+pg_outboxer_replication_lag_bytes                     # CDC mode only
+pg_outboxer_wal_messages_total{type}                  # CDC mode only
 ```
 
 ## Configuration Reference
